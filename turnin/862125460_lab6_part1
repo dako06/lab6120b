@@ -1,0 +1,133 @@
+/*	Author: Dakota Heredia
+ *  Partner(s) Name: 
+ *	Lab Section: 023
+ *	Assignment: Lab #6  Exercise #1
+ *	Exercise Description: [optional - include for your own benefit]
+ *
+ *	I acknowledge all content contained herein, excluding template or example
+ *	code, is my own original work.
+ *
+ *	Demo Link: https://youtu.be/gpUTaTJH6e4
+ *
+ */
+#include <avr/io.h>
+#ifdef _SIMULATE_
+#include "simAVRHeader.h"
+#endif
+#include <avr/interrupt.h>
+
+
+volatile unsigned char TimerFlag = 0;
+unsigned long _avr_timer_M = 1;
+unsigned long _avr_timer_cntcurr = 0;
+
+
+void TimerOn() {
+	/*AVR timer/counter controller reg TCCR1*/
+	TCCR1B = 0x0B; //needs 
+	
+	/*AVR output compare reg*/
+	OCR1A = 125; // needs 
+	
+	/* AVR timer interrupt mask reg*/
+	TIMSK1 = 0x02; // needs
+	
+	/*initialize avr counter*/
+	TCNT1 = 0; 
+	
+	_avr_timer_cntcurr = _avr_timer_M ;
+	/*TimerISR called every _avr_timer_cntcurr ms*/
+	
+	/* enable global interrupts*/
+	SREG |= 0x80;
+}
+
+void TimerOff() {
+	TCCR1B = 0x00; // timer off
+}
+
+void TimerISR() {
+	TimerFlag = 1;
+}
+
+ISR(TIMER1_COMPA_vect) {
+	/*CPU automatically calls when TCNT1 == OCR1A*/
+	_avr_timer_cntcurr--; // count down to zero
+	if (_avr_timer_cntcurr == 0) {
+		TimerISR(); 
+		_avr_timer_cntcurr = _avr_timer_M;
+	}
+}
+
+/*set TimerISR() to tick every M ms*/
+void TimerSet(unsigned long M) {
+	_avr_timer_M = M;
+	_avr_timer_cntcurr = _avr_timer_M;
+}
+
+
+
+enum States {start, one, two, three}  state;	
+
+
+
+void Tick() { 
+/*state transitions*/
+switch(state) {
+	
+	case start:
+	state = one;
+	break;
+	
+	case one:
+	state = two;
+	break;
+	
+	case two:
+	state = three;
+	break;
+	
+	case three:
+	state = one;
+	break;
+	
+}
+
+/* state actions*/
+switch(state) {
+
+	case start:
+	break;
+
+	case one:
+	PORTB = 0x01;
+	break;
+
+	case two:
+	PORTB = 0x02;
+	break;
+
+	case three:
+	PORTB = 0x04;
+	break;
+
+}
+}
+int main(void) {
+
+//DDRA = 0x00; PORTA = 0xFF; //A initialized to inp and set to 1
+DDRB = 0xFF; PORTB = 0x00; //B initialized to outp and set to 0
+TimerSet(1000);
+TimerOn();
+PORTB = 0x00;
+state = start;
+    while (1) {
+
+           Tick();
+	   while (!TimerFlag) {}
+	   TimerFlag = 0;
+	  	}
+
+    return 1;
+	}
+
